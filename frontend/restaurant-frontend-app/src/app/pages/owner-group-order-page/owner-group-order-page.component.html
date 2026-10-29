@@ -1,0 +1,268 @@
+<div class="group-order-page">
+  <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <a routerLink="/reservations">Reservations</a>
+    <span aria-hidden="true">/</span>
+    <span>Group pre-order</span>
+  </nav>
+
+  <main class="page-content">
+    <header class="page-heading">
+      <div>
+        <p class="eyebrow">OWNER FLOW</p>
+        <h1>Group pre-order</h1>
+        <p class="subtitle">See what everyone chose and send one order to the restaurant.</p>
+      </div>
+      <span class="mode-badge" [class.mode-badge--demo]="isDemo">
+        <span class="mode-dot" aria-hidden="true"></span>
+        {{ isDemo ? 'Demo mode' : 'Live order' }}
+      </span>
+    </header>
+
+    @if (isDemo) {
+      <div class="demo-notice" role="note">
+        <span class="notice-icon" aria-hidden="true">i</span>
+        <span>This is sample data. No account or backend connection is needed.</span>
+      </div>
+    }
+
+    @if (orderSubmitted()) {
+      <section class="success-banner" role="status">
+        <span class="success-icon" aria-hidden="true">✓</span>
+        <div>
+          <h2>Group order sent!</h2>
+          <p>
+            {{ submittedDishCount() }} {{ submittedDishCount() === 1 ? 'item' : 'items' }}
+            were combined into one pre-order.
+          </p>
+        </div>
+      </section>
+    }
+
+    @if (loading()) {
+      <section class="state-card" aria-live="polite">
+        <span class="loader" aria-hidden="true"></span>
+        <p>Loading group order…</p>
+      </section>
+    } @else if (errorMessage()) {
+      <section class="state-card state-card--error" role="alert">
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h2>We couldn’t load this group order</h2>
+        <p>{{ errorMessage() }}</p>
+        <button type="button" class="button button--secondary" (click)="retryLoad()">
+          Try again
+        </button>
+      </section>
+    } @else {
+      @if (snapshot(); as order) {
+        <section class="overview" aria-label="Group order overview">
+          <div class="overview-card">
+            <span class="overview-icon overview-icon--people" aria-hidden="true">♧</span>
+            <div>
+              <span class="overview-label">Guests joined</span>
+              <strong>{{ guestCount() }}</strong>
+            </div>
+          </div>
+          <div class="overview-card">
+            <span class="overview-icon overview-icon--submitted" aria-hidden="true">✓</span>
+            <div>
+              <span class="overview-label">Submitted</span>
+              <strong
+                >{{ submittedGuestCount() }} <small>/ {{ guestCount() }}</small></strong
+              >
+            </div>
+          </div>
+          <div class="overview-card overview-card--total">
+            <span class="overview-icon overview-icon--total" aria-hidden="true">$</span>
+            <div>
+              <span class="overview-label">Submitted order</span>
+              <strong>{{ combinedTotal() | currency: '$' }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <div class="order-layout">
+          <section class="participants-panel" aria-labelledby="participants-heading">
+            <div class="section-heading">
+              <div>
+                <h2 id="participants-heading">Guests’ choices</h2>
+                <p>Each guest’s basket and submission status</p>
+              </div>
+              <span class="guest-count"
+                >{{ guestCount() }} {{ guestCount() === 1 ? 'guest' : 'guests' }}</span
+              >
+            </div>
+
+            @if (order.participants.length === 0) {
+              <div class="empty-card">
+                <span class="empty-icon" aria-hidden="true">♧</span>
+                <h3>No guests yet</h3>
+                <p>Guest baskets will appear here when someone joins your group order.</p>
+              </div>
+            } @else {
+              <div class="participant-list">
+                @for (participant of order.participants; track participant.id) {
+                  <article class="participant-card">
+                    <header class="participant-header">
+                      <div class="participant-identity">
+                        <span class="avatar" aria-hidden="true">{{
+                          initials(participant.name)
+                        }}</span>
+                        <div>
+                          <h3>{{ participant.name }}</h3>
+                          <span class="participant-caption">Group member</span>
+                        </div>
+                      </div>
+                      <span
+                        class="status-badge"
+                        [class.status-badge--submitted]="participant.isSubmitted"
+                      >
+                        <span class="status-indicator" aria-hidden="true"></span>
+                        {{ participant.isSubmitted ? 'Submitted' : 'Choosing' }}
+                      </span>
+                    </header>
+
+                    @if (participant.items.length > 0) {
+                      <ul class="dish-list">
+                        @for (item of participant.items; track item.dish.id) {
+                          <li class="dish-row">
+                            <div class="dish-thumbnail" aria-hidden="true">
+                              @if (item.dish.imageUrl) {
+                                <img [src]="item.dish.imageUrl" [alt]="item.dish.name" />
+                              } @else {
+                                <span>{{ initials(item.dish.name) }}</span>
+                              }
+                            </div>
+                            <div class="dish-description">
+                              <span class="dish-name">{{ item.dish.name }}</span>
+                              <span class="dish-unit-price"
+                                >{{ item.dish.price | currency: '$' }} each</span
+                              >
+                            </div>
+                            <span class="dish-quantity">× {{ item.quantity }}</span>
+                            <strong class="dish-total">
+                              {{ item.dish.price * item.quantity | currency: '$' }}
+                            </strong>
+                          </li>
+                        }
+                      </ul>
+                    } @else {
+                      <p class="no-dishes">No dishes added yet</p>
+                    }
+
+                    <footer class="participant-total">
+                      <span>Guest total</span>
+                      <strong>{{ participantTotal(participant) | currency: '$' }}</strong>
+                    </footer>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+
+          <aside class="summary-panel" aria-labelledby="summary-heading">
+            <div class="summary-heading">
+              <span class="summary-icon" aria-hidden="true">▤</span>
+              <div>
+                <h2 id="summary-heading">Combined order</h2>
+                <p>Only submitted guest baskets are included</p>
+              </div>
+            </div>
+
+            @if (combinedDishes().length > 0) {
+              <ul class="summary-list">
+                @for (dish of combinedDishes(); track dish.id) {
+                  <li>
+                    <span class="summary-dish">
+                      <strong>{{ dish.name }}</strong>
+                      <small>{{ dish.quantity }} × {{ dish.price | currency: '$' }}</small>
+                    </span>
+                    <span class="summary-price">{{
+                      dish.quantity * dish.price | currency: '$'
+                    }}</span>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <div class="summary-empty">
+                <p>Nothing to send yet</p>
+                <span>Submitted baskets will be combined here.</span>
+              </div>
+            }
+
+            <div class="summary-total">
+              <span>Order total</span>
+              <strong>{{ combinedTotal() | currency: '$' }}</strong>
+            </div>
+
+            @if (submitErrorMessage()) {
+              <p class="submit-error" role="alert">{{ submitErrorMessage() }}</p>
+            }
+
+            <button
+              type="button"
+              class="button button--primary"
+              [disabled]="!canSubmit()"
+              (click)="openSubmitConfirmation()"
+            >
+              @if (submitting()) {
+                Sending order…
+              } @else if (orderSubmitted()) {
+                Order sent
+              } @else {
+                Send group order
+              }
+              <span aria-hidden="true">→</span>
+            </button>
+            @if (!orderSubmitted() && submittedGuestCount() === 0) {
+              <p class="submit-hint">Waiting for at least one guest to submit their basket.</p>
+            } @else if (!orderSubmitted() && submittedGuestCount() < guestCount()) {
+              <p class="submit-hint">Guests still choosing are not included in this order.</p>
+            }
+            @if (!isDemo) {
+              @if (lastSyncedAt(); as syncedAt) {
+                <p class="sync-time">
+                  Updated {{ syncedAt | date: 'shortTime' }} · refreshes every 15 seconds
+                </p>
+              }
+            }
+          </aside>
+        </div>
+      }
+    }
+  </main>
+</div>
+
+@if (showSubmitConfirmation()) {
+  <div class="dialog-backdrop">
+    <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <span class="dialog-icon" aria-hidden="true">✓</span>
+      <h2 id="confirm-title">Send this group order?</h2>
+      <p>
+        The restaurant will receive {{ combinedDishes().length }}
+        {{ combinedDishes().length === 1 ? 'dish' : 'dishes' }}
+        from {{ submittedGuestCount() }} submitted
+        {{ submittedGuestCount() === 1 ? 'guest' : 'guests' }}. The total is
+        <strong>{{ combinedTotal() | currency: '$' }}</strong
+        >.
+      </p>
+      <div class="dialog-actions">
+        <button
+          type="button"
+          class="button button--secondary"
+          [disabled]="submitting()"
+          (click)="closeSubmitConfirmation()"
+        >
+          Keep reviewing
+        </button>
+        <button
+          type="button"
+          class="button button--primary"
+          [disabled]="submitting()"
+          (click)="confirmSubmit()"
+        >
+          {{ submitting() ? 'Sending…' : 'Confirm order' }}
+        </button>
+      </div>
+    </section>
+  </div>
+}
