@@ -1,0 +1,76 @@
+name: AQA end-to-end tests
+
+on:
+  push:
+    paths:
+      - "aqa/restaurant-aqa-framework/**"
+      - "frontend/restaurant-frontend-app/**"
+      - "backend/restaurant-backend-app/dnapp/lambdas/api-handler/**"
+      - ".github/workflows/aqa-e2e.yml"
+  pull_request:
+    paths:
+      - "aqa/restaurant-aqa-framework/**"
+      - "frontend/restaurant-frontend-app/**"
+      - "backend/restaurant-backend-app/dnapp/lambdas/api-handler/**"
+      - ".github/workflows/aqa-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore and build
+        run: dotnet build aqa/restaurant-aqa-framework/Restaurant.Aqa.csproj --configuration Release
+
+      - name: Install Playwright Chromium
+        run: pwsh aqa/restaurant-aqa-framework/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      - name: Run E2E and API tests
+        id: tests
+        continue-on-error: true
+        env:
+          AQA_FRONTEND_URL: ${{ vars.AQA_FRONTEND_URL || 'https://d1n6pycnjfkr4j.cloudfront.net' }}
+          AQA_API_URL: ${{ vars.AQA_API_URL || 'https://44hns6u8zf.execute-api.us-west-2.amazonaws.com/develop' }}
+          AQA_RUN_LIVE_TESTS: ${{ vars.AQA_RUN_LIVE_TESTS || 'false' }}
+          AQA_OWNER_EMAIL: ${{ secrets.AQA_OWNER_EMAIL }}
+          AQA_OWNER_PASSWORD: ${{ secrets.AQA_OWNER_PASSWORD }}
+          AQA_OTHER_CUSTOMER_EMAIL: ${{ secrets.AQA_OTHER_CUSTOMER_EMAIL }}
+          AQA_OTHER_CUSTOMER_PASSWORD: ${{ secrets.AQA_OTHER_CUSTOMER_PASSWORD }}
+          AQA_TEST_TABLE_ID: ${{ vars.AQA_TEST_TABLE_ID }}
+          AQA_TEST_DISH_ID: ${{ vars.AQA_TEST_DISH_ID }}
+          RP_ENDPOINT: ${{ secrets.RP_ENDPOINT }}
+          RP_API_KEY: ${{ secrets.RP_API_KEY }}
+          RP_PROJECT: ${{ vars.RP_PROJECT }}
+          RP_LAUNCH: Restaurant AQA
+        run: >
+          dotnet test aqa/restaurant-aqa-framework/Restaurant.Aqa.csproj
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=aqa-results.trx"
+          --results-directory aqa/restaurant-aqa-framework/TestResults
+          -- NUnit.NumberOfTestWorkers=1
+
+      - name: Upload test reports and failure artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqa-e2e-results
+          if-no-files-found: warn
+          path: |
+            aqa/restaurant-aqa-framework/TestResults/**/*.trx
+            aqa/restaurant-aqa-framework/test-artifacts/**
+
+      - name: Fail job after uploading test reports
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "Some AQA tests failed. Inspect the uploaded TRX, screenshot, and Playwright trace artifacts."
+          exit 1

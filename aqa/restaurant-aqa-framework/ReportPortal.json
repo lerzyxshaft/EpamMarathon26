@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/reportportal/agent-net-nunit/master/src/ReportPortal.NUnitExtension/ReportPortal.config.schema",
+  "enabled": false,
+  "server": {
+    "url": "",
+    "project": "",
+    "apiKey": "",
+    "authentication": {
+      "uuid": ""
+    }
+  },
+  "launch": {
+    "name": "Restaurant AQA",
+    "description": "End-to-end tests for the group pre-order flow",
+    "debugMode": false,
+    "attributes": ["automation", "playwright", "group-preorder"]
+  }
+}
