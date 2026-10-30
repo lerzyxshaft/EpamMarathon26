@@ -185,19 +185,21 @@ cd ../../frontend/restaurant-frontend-app
 npm ci
 ```
 
-This is an Angular application, not a Create React App project: it does not read `.env` or `REACT_APP_API_URL`. Before production build, set `BACKEND_URL` to the deployed API Gateway base URL. The npm `prebuild` hook runs `scripts/set-env.mjs`, which validates that URL and generates the ignored `src/environments/environment.production.ts` file:
+This is an Angular application, not a Create React App project: it does not read `.env` or `REACT_APP_API_URL`. Before production build, set `BACKEND_URL` to the API Gateway base URL used by the target environment. The npm `prebuild` hook runs `scripts/set-env.mjs`, which validates that URL and generates the ignored `src/environments/environment.production.ts` file:
 
 ```bash
 export AWS_REGION=us-west-2
-export API_ID="$(aws apigateway get-rest-apis \
-  --region "$AWS_REGION" \
-  --query "items[?name=='restaurant-backend-api'].id | [0]" \
-  --output text)"
-export BACKEND_URL="https://${API_ID}.execute-api.${AWS_REGION}.amazonaws.com/develop"
+export BACKEND_URL="https://eknqcvq3l1.execute-api.us-west-2.amazonaws.com/develop"
 npm run build
 ```
 
 The Angular production output is `dist/restaurant-frontend-app/browser`. Sync this directory to the Terraform-managed private frontend bucket, then invalidate CloudFront:
+
+The currently working frontend uses the same data-backed API as local development:
+`https://eknqcvq3l1.execute-api.us-west-2.amazonaws.com/develop`. The API created in this
+AWS account (`https://44hns6u8zf.execute-api.us-west-2.amazonaws.com/develop`) currently
+returns empty `locations` and `dishes` collections. Keep using the data-backed API unless
+you have populated the account's DynamoDB tables and verified the application against them.
 
 ```bash
 export ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
@@ -234,7 +236,7 @@ export API_ID="$(aws apigateway get-rest-apis \
   --region "$AWS_REGION" \
   --query "items[?name=='restaurant-backend-api'].id | [0]" \
   --output text)"
-export BACKEND_URL="https://${API_ID}.execute-api.${AWS_REGION}.amazonaws.com/develop"
+export BACKEND_URL="https://eknqcvq3l1.execute-api.us-west-2.amazonaws.com/develop"
 
 npm ci
 npm run build
